@@ -1,19 +1,18 @@
 # Darkstar
 
-Darkstar packages Vega `5.10.1` and Vega-lite `4.10.1` as a single
-dependency Clojure library with a very small API surface.
+This is an experimental fork of [Applied Science's Darkstar](https://github.com/applied-science/darkstar) library, extending it to support additional visualization libraries beyond Vega and Vega-lite.
 
-This was made relatively easy by the GraalJS Javascript runtime, which
-should work on any stock JVM >= `1.8.0_131`. I have tested it on that
-version of HotSpot, as well as OpenJDK 11 and 13.
+The original Darkstar packages Vega `5.10.1` and Vega-lite `4.10.1` as a single dependency Clojure library. This fork adds experimental support for D3.js, Observable Plot, and simple diagram generation while maintaining the same small API surface.
+
+This was made possible by the GraalJS Javascript runtime, which works on any stock JVM >= `1.8.0_131`. Tested on HotSpot, OpenJDK 11, 13, and 21.
 
 ## Installation
 
-We have not yet released to Clojars, so we recommended you use deps.edn:
+Add to deps.edn:
 
 ``` clojure
-applied-science/darkstar {:git/url "https://github.com/applied-science/darkstar/"
-                          :sha "541a3ff36065c59e92fe6aa61e41a4385ba6f893"}
+daslu/darkstar {:git/url "https://github.com/daslu/darkstar/"
+                :sha "latest-sha"}
 ```
 
 ## Usage
@@ -22,33 +21,51 @@ applied-science/darkstar {:git/url "https://github.com/applied-science/darkstar/
 (ns test
   (:require [applied-science.darkstar :as darkstar]))
 
-;; write an SVG from a Vega spec
+;; Vega and Vega-lite (original functionality)
 (->> (slurp "vega-example.json")
      darkstar/vega-spec->svg
      (spit "vg-example.svg"))
 
-;; write an SVG from a Vega-lite spec
 (->> (slurp "vega-lite-example.json")
      darkstar/vega-lite-spec->svg
      (spit "vl-example.svg"))
+
+;; D3.js scripts (experimental)
+(->> custom-d3-script
+     darkstar/d3-script->svg
+     (spit "d3-chart.svg"))
+
+;; Observable Plot (experimental)
+(->> plot-specification
+     darkstar/plot->svg
+     (spit "plot-chart.svg"))
+
+;; Simple diagrams (experimental)
+(-> (darkstar/simple-flowchart nodes connections)
+    (spit "flowchart.svg"))
 ```
 
-## Development 
+See [examples](src/applied_science/darkstar_examples.clj) for complete working examples of all supported visualization types.
 
-Build a deployable jar of this library:
+Additional libraries (Plotly.js, Apache ECharts, Viz.js (Graphviz), Mermaid) were attempted but proved incompatible with GraalJS and are available in separate experimental branches.
 
-    $ clojure -A:jar
+## Development
 
-Install it locally:
+Run tests:
 
-    $ clojure -A:install
+    $ clojure -M:test:runner
 
-Deploy it to Clojars -- needs `CLOJARS_USERNAME` and `CLOJARS_PASSWORD` environment variables:
+Start REPL:
 
-    $ clojure -A:deploy
+    $ clojure -M:nrepl
 
-## License
+Build and deploy:
 
-Copyright © 2020 Applied Science
+    $ clojure -M:release
+    $ clojure -M:release deploy
 
+## Attribution
+
+Original Darkstar: Copyright © 2020 Applied Science  
+Fork modifications: Copyright © 2025 Daniel Slutsky  
 Distributed under the MIT License.
