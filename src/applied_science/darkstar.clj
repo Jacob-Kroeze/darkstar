@@ -1,4 +1,5 @@
-(ns applied-science.darkstar)
+(ns applied-science.darkstar
+  (:require [charred.api :as charred]))
 
 (def ^:dynamic *base-directory* nil)
 
@@ -216,29 +217,9 @@ global.document = createDocument();
             (.as result Object)))))))
 
 (defn- clj->js-json
-  "Convert Clojure data to JavaScript JSON string"
+  "Convert Clojure data to JavaScript JSON string using Charred"
   [data]
-  (letfn [(convert-value [v]
-            (cond
-              (nil? v) "null"
-              (boolean? v) (str v)
-              (number? v) (str v)
-              (string? v) (str "\"" v "\"")
-              (keyword? v) (str "\"" (name v) "\"")
-              (map? v) (str "{"
-                            (->> v
-                                 (map (fn [[k v]]
-                                        (str (convert-value (if (keyword? k) (name k) k))
-                                             ":" (convert-value v))))
-                                 (clojure.string/join ","))
-                            "}")
-              (sequential? v) (str "["
-                                   (->> v
-                                        (map convert-value)
-                                        (clojure.string/join ","))
-                                   "]")
-              :else (str "\"" v "\"")))]
-    (convert-value data)))
+  (charred/write-json-str data))
 
 (defn d3-script->svg
   "Execute D3 JavaScript code and return SVG string.
