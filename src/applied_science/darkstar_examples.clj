@@ -12,11 +12,11 @@
             [clojure.java.io :as io]))
 
 ;; ============================================================================
-;; Basic Examples
+;; Vega Examples (Low-level grammar of graphics)
 ;; ============================================================================
 
-(defn simple-bar-chart
-  "Renders a basic bar chart using pure Vega specification"
+(defn vega-bar-chart
+  "Basic bar chart using pure Vega specification"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega/v5.json"
               :width 400
@@ -51,8 +51,12 @@
                                 :hover {:fill {:value "orange"}}}}]}]
     (darkstar/vega-spec->svg (charred/write-json-str spec))))
 
-(defn simple-vega-lite-bar
-  "Renders a bar chart using the simpler Vega-lite specification"
+;; ============================================================================
+;; Vega-Lite Examples (High-level statistical graphics)
+;; ============================================================================
+
+(defn vega-lite-bar-chart
+  "Simple bar chart using Vega-lite specification"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega-lite/v4.json"
               :description "A simple bar chart with embedded data."
@@ -71,12 +75,8 @@
                              :type "quantitative"}}}]
     (darkstar/vega-lite-spec->svg (charred/write-json-str spec))))
 
-;; ============================================================================
-;; More Complex Examples
-;; ============================================================================
-
-(defn scatter-plot
-  "Creates a scatter plot with color encoding"
+(defn vega-lite-scatter-plot
+  "Scatter plot with color encoding using Vega-lite"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega-lite/v4.json"
               :description "A scatter plot with color encoding"
@@ -104,8 +104,8 @@
                                  :scale {:scheme "category10"}}}}]
     (darkstar/vega-lite-spec->svg (charred/write-json-str spec))))
 
-(defn line-chart
-  "Creates a multi-series line chart"
+(defn vega-lite-line-chart
+  "Multi-series line chart using Vega-lite"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega-lite/v4.json"
               :description "Multi-series line chart"
@@ -132,8 +132,8 @@
                                  :type "nominal"}}}]
     (darkstar/vega-lite-spec->svg (charred/write-json-str spec))))
 
-(defn heatmap
-  "Creates a heatmap visualization"
+(defn vega-lite-heatmap
+  "Heatmap visualization using Vega-lite"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega-lite/v4.json"
               :width 300
@@ -159,12 +159,8 @@
                                  :scale {:scheme "blues"}}}}]
     (darkstar/vega-lite-spec->svg (charred/write-json-str spec))))
 
-;; ============================================================================
-;; Data Transformation Examples
-;; ============================================================================
-
-(defn aggregated-bar-chart
-  "Bar chart with data aggregation"
+(defn vega-lite-aggregated-bar-chart
+  "Bar chart with data aggregation using Vega-lite"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega-lite/v4.json"
               :description "Bar chart with aggregation"
@@ -189,8 +185,8 @@
                                  :type "nominal"}}}]
     (darkstar/vega-lite-spec->svg (charred/write-json-str spec))))
 
-(defn histogram
-  "Creates a histogram with binning"
+(defn vega-lite-histogram
+  "Histogram with binning using Vega-lite"
   []
   (let [spec {:$schema "https://vega.github.io/schema/vega-lite/v4.json"
               :width 400
@@ -210,35 +206,11 @@
     (darkstar/vega-lite-spec->svg (charred/write-json-str spec))))
 
 ;; ============================================================================
-;; Helper Functions
+;; D3 Examples (Imperative DOM manipulation)
 ;; ============================================================================
 
-(defn save-example
-  "Saves an SVG string to a file"
-  [svg-string filename]
-  (spit (str "examples/" filename) svg-string)
-  (println (str "Saved to examples/" filename)))
-
-(defn generate-all-examples
-  "Generates all example visualizations and saves them to files"
-  []
-  (io/make-parents "examples/dummy.txt")
-  (println "Generating all examples...")
-
-  (save-example (simple-bar-chart) "simple-bar.svg")
-  (save-example (simple-vega-lite-bar) "vega-lite-bar.svg")
-  (save-example (scatter-plot) "scatter-plot.svg")
-  (save-example (line-chart) "line-chart.svg")
-  (save-example (heatmap) "heatmap.svg")
-  (save-example (aggregated-bar-chart) "aggregated-bar.svg")
-  (save-example (histogram) "histogram.svg")
-
-  (println "All examples generated!"))
-
-;; ==================== D3 Examples ====================
-
 (defn d3-bar-chart
-  "Create a bar chart using D3.js"
+  "Simple bar chart using D3.js"
   []
   (let [data [{:name "Apples" :value 28}
               {:name "Bananas" :value 55}
@@ -247,8 +219,8 @@
               {:name "Elderberry" :value 67}]]
     (darkstar/d3-simple-bar-chart data)))
 
-(defn d3-scatter-chart
-  "Create a scatter plot using D3.js"
+(defn d3-scatter-plot
+  "Scatter plot using D3.js"
   []
   (let [data [{:x 10 :y 20}
               {:x 25 :y 35}
@@ -259,8 +231,8 @@
               {:x 95 :y 72}]]
     (darkstar/d3-scatter-plot data)))
 
-(defn d3-advanced-bar-chart
-  "Create an advanced bar chart with custom D3 script"
+(defn d3-grouped-bar-chart
+  "Grouped bar chart with custom D3 script"
   []
   (let [data [{:category "Q1" :sales 1200 :costs 800}
               {:category "Q2" :sales 1400 :costs 900}
@@ -284,18 +256,7 @@
         g.setAttribute('transform', 'translate(' + margin.left + ',' + margin.top + ')');
         svg.appendChild(g);
         
-        // Title
-        var title = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        title.setAttribute('x', width / 2);
-        title.setAttribute('y', -10);
-        title.setAttribute('text-anchor', 'middle');
-        title.setAttribute('font-family', 'Arial, sans-serif');
-        title.setAttribute('font-size', '16px');
-        title.setAttribute('font-weight', 'bold');
-        title.textContent = 'Quarterly Sales vs Costs';
-        g.appendChild(title);
-        
-        // Scales
+        // Use real D3 scales
         var x0 = d3.scaleBand().range([0, width]).domain(data.map(d => d.category)).padding(0.1);
         var x1 = d3.scaleBand().domain(['sales', 'costs']).range([0, x0.bandwidth()]).padding(0.05);
         var y = d3.scaleLinear().range([height, 0]).domain([0, d3.max(data, d => Math.max(d.sales, d.costs))]);
@@ -322,61 +283,11 @@
           costsRect.setAttribute('height', height - y(d.costs));
           costsRect.setAttribute('fill', colors.costs);
           g.appendChild(costsRect);
-          
-          // Category label
-          var label = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          label.setAttribute('x', x0(d.category) + x0.bandwidth() / 2);
-          label.setAttribute('y', height + 20);
-          label.setAttribute('text-anchor', 'middle');
-          label.setAttribute('font-family', 'Arial, sans-serif');
-          label.setAttribute('font-size', '12px');
-          label.textContent = d.category;
-          g.appendChild(label);
         });
-        
-        // Legend
-        var legend = global.document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        legend.setAttribute('transform', 'translate(' + (width - 100) + ',20)');
-        
-        // Sales legend
-        var salesLegendRect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        salesLegendRect.setAttribute('x', 0);
-        salesLegendRect.setAttribute('y', 0);
-        salesLegendRect.setAttribute('width', 15);
-        salesLegendRect.setAttribute('height', 15);
-        salesLegendRect.setAttribute('fill', colors.sales);
-        legend.appendChild(salesLegendRect);
-        
-        var salesLegendText = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        salesLegendText.setAttribute('x', 20);
-        salesLegendText.setAttribute('y', 12);
-        salesLegendText.setAttribute('font-family', 'Arial, sans-serif');
-        salesLegendText.setAttribute('font-size', '12px');
-        salesLegendText.textContent = 'Sales';
-        legend.appendChild(salesLegendText);
-        
-        // Costs legend
-        var costsLegendRect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        costsLegendRect.setAttribute('x', 0);
-        costsLegendRect.setAttribute('y', 20);
-        costsLegendRect.setAttribute('width', 15);
-        costsLegendRect.setAttribute('height', 15);
-        costsLegendRect.setAttribute('fill', colors.costs);
-        legend.appendChild(costsLegendRect);
-        
-        var costsLegendText = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        costsLegendText.setAttribute('x', 20);
-        costsLegendText.setAttribute('y', 32);
-        costsLegendText.setAttribute('font-family', 'Arial, sans-serif');
-        costsLegendText.setAttribute('font-size', '12px');
-        costsLegendText.textContent = 'Costs';
-        legend.appendChild(costsLegendText);
-        
-        g.appendChild(legend);
       "))))
 
-(defn d3-real-features-demo
-  "Demonstrate real D3.js features like data joins, scales, and axes"
+(defn d3-advanced-features
+  "Advanced D3 features: data joins, selections, scales, and axes"
   []
   (let [data [{:category "Q1" :sales 1200 :costs 800}
               {:category "Q2" :sales 1400 :costs 900}
@@ -424,13 +335,12 @@
         var xAxis = d3.axisBottom(x0);
         var yAxis = d3.axisLeft(y);
         
-        // Add X axis
+        // Add axes using D3 call
         g.append('g')
           .attr('class', 'x-axis')
           .attr('transform', 'translate(0,' + height + ')')
           .call(xAxis);
         
-        // Add Y axis
         g.append('g')
           .attr('class', 'y-axis')
           .call(yAxis);
@@ -442,7 +352,7 @@
           .attr('class', 'category')
           .attr('transform', d => 'translate(' + x0(d.category) + ',0)');
         
-        // Sales bars
+        // Sales and costs bars using D3 selections
         categories.append('rect')
           .attr('class', 'sales-bar')
           .attr('x', x1('sales'))
@@ -451,7 +361,6 @@
           .attr('height', d => height - y(d.sales))
           .attr('fill', color('sales'));
         
-        // Costs bars  
         categories.append('rect')
           .attr('class', 'costs-bar')
           .attr('x', x1('costs'))
@@ -460,23 +369,7 @@
           .attr('height', d => height - y(d.costs))
           .attr('fill', color('costs'));
         
-        // Add value labels using D3 text elements
-        categories.selectAll('.value-label')
-          .data(d => [
-            {key: 'sales', value: d.sales, x: x1('sales')},
-            {key: 'costs', value: d.costs, x: x1('costs')}
-          ])
-          .enter().append('text')
-          .attr('class', 'value-label')
-          .attr('x', d => d.x + x1.bandwidth()/2)
-          .attr('y', d => y(d.value) - 5)
-          .attr('text-anchor', 'middle')
-          .attr('font-family', 'Arial, sans-serif')
-          .attr('font-size', '10px')
-          .attr('fill', '#333')
-          .text(d => d.value);
-        
-        // Add title
+        // Add title and legend using D3 selections
         svg.append('text')
           .attr('x', (width + margin.left + margin.right) / 2)
           .attr('y', 20)
@@ -485,76 +378,124 @@
           .attr('font-size', '16px')
           .attr('font-weight', 'bold')
           .attr('fill', '#333')
-          .text('Quarterly Performance - Real D3.js Demo');
-        
-        // Add legend using D3 selections
-        var legend = svg.append('g')
-          .attr('class', 'legend')
-          .attr('transform', 'translate(' + (width + margin.left + 10) + ',' + (margin.top + 20) + ')');
-        
-        var legendItems = legend.selectAll('.legend-item')
-          .data(['sales', 'costs'])
-          .enter().append('g')
-          .attr('class', 'legend-item')
-          .attr('transform', (d, i) => 'translate(0,' + (i * 20) + ')');
-        
-        legendItems.append('rect')
-          .attr('width', 15)
-          .attr('height', 15)
-          .attr('fill', d => color(d));
-        
-        legendItems.append('text')
-          .attr('x', 20)
-          .attr('y', 12)
-          .attr('font-family', 'Arial, sans-serif')
-          .attr('font-size', '12px')
-          .attr('fill', '#333')
-          .text(d => d.charAt(0).toUpperCase() + d.slice(1));
+          .text('Real D3.js Features Demo');
         
         // Store the SVG for extraction
         global.svgElement = svg.node();
       "))))
 
-(defn generate-all-d3-examples
-  "Generate all D3 example charts and save them to files"
-  []
-  (let [examples [["d3-simple-bar.svg" (d3-bar-chart)]
-                  ["d3-scatter.svg" (d3-scatter-chart)]
-                  ["d3-advanced-bar.svg" (d3-advanced-bar-chart)]
-                  ["d3-real-features.svg" (d3-real-features-demo)]]]
-    (doseq [[filename svg] examples]
-      (save-example svg filename)
-      (println "Generated" filename))
-    (println "All D3 examples generated!")))
+;; ============================================================================
+;; Helper Functions
+;; ============================================================================
 
-(defn generate-all-examples-with-d3
-  "Generate all examples including both Vega/Vega-lite and D3 examples"
-  []
-  (generate-all-examples)
-  (generate-all-d3-examples))
+(defn save-example
+  "Saves an SVG string to a file in the examples directory"
+  [svg-string filename]
+  (spit (str "examples/" filename) svg-string)
+  (println (str "Saved to examples/" filename)))
 
 ;; ============================================================================
-;; Usage Examples in Comments
+;; Generation Functions
+;; ============================================================================
+
+(defn generate-vega-examples
+  "Generate all Vega example visualizations"
+  []
+  (io/make-parents "examples/dummy.txt")
+  (println "Generating Vega examples...")
+  (save-example (vega-bar-chart) "vega-bar.svg")
+  (println "Vega examples generated!"))
+
+(defn generate-vega-lite-examples
+  "Generate all Vega-lite example visualizations"
+  []
+  (io/make-parents "examples/dummy.txt")
+  (println "Generating Vega-lite examples...")
+  (save-example (vega-lite-bar-chart) "vega-lite-bar.svg")
+  (save-example (vega-lite-scatter-plot) "vega-lite-scatter.svg")
+  (save-example (vega-lite-line-chart) "vega-lite-line.svg")
+  (save-example (vega-lite-heatmap) "vega-lite-heatmap.svg")
+  (save-example (vega-lite-aggregated-bar-chart) "vega-lite-aggregated-bar.svg")
+  (save-example (vega-lite-histogram) "vega-lite-histogram.svg")
+  (println "Vega-lite examples generated!"))
+
+(defn generate-d3-examples
+  "Generate all D3 example visualizations"
+  []
+  (io/make-parents "examples/dummy.txt")
+  (println "Generating D3 examples...")
+  (save-example (d3-bar-chart) "d3-bar.svg")
+  (save-example (d3-scatter-plot) "d3-scatter.svg")
+  (save-example (d3-grouped-bar-chart) "d3-grouped-bar.svg")
+  (save-example (d3-advanced-features) "d3-advanced-features.svg")
+  (println "D3 examples generated!"))
+
+(defn generate-all-examples
+  "Generate all example visualizations (Vega, Vega-lite, and D3)"
+  []
+  (generate-vega-examples)
+  (generate-vega-lite-examples)
+  (generate-d3-examples))
+
+;; ============================================================================
+;; Backwards Compatibility Aliases
+;; ============================================================================
+
+;; Keep old function names for backwards compatibility
+(def simple-bar-chart vega-bar-chart)
+(def simple-vega-lite-bar vega-lite-bar-chart)
+(def scatter-plot vega-lite-scatter-plot)
+(def line-chart vega-lite-line-chart)
+(def heatmap vega-lite-heatmap)
+(def aggregated-bar-chart vega-lite-aggregated-bar-chart)
+(def histogram vega-lite-histogram)
+(def d3-advanced-bar-chart d3-grouped-bar-chart)
+(def d3-real-features-demo d3-advanced-features)
+(def generate-all-d3-examples generate-d3-examples)
+(def generate-all-examples-with-d3 generate-all-examples)
+
+;; ============================================================================
+;; Usage Examples and Documentation
 ;; ============================================================================
 
 (comment
-  ;; Load this namespace in REPL
-  (require '[applied-science.darkstar-examples :as examples])
+  ;; === Vega Examples (Grammar of Graphics) ===
+  (def vega-chart (vega-bar-chart))
+  (spit "vega-chart.svg" vega-chart)
 
-  ;; Generate a simple bar chart
-  (def my-chart (examples/simple-bar-chart))
-  (spit "my-chart.svg" my-chart)
+  ;; === Vega-Lite Examples (High-level Statistical Graphics) ===
+  (def vl-scatter (vega-lite-scatter-plot))
+  (def vl-line (vega-lite-line-chart))
+  (def vl-heatmap (vega-lite-heatmap))
 
-  ;; Generate all examples
-  (examples/generate-all-examples)
+  ;; === D3 Examples (Imperative DOM Manipulation) ===
+  (def d3-chart (d3-bar-chart))
+  (def d3-advanced (d3-advanced-features))
 
-  (examples/generate-all-d3-examples)
+  ;; === Generate All Examples by Type ===
+  (generate-vega-examples)
+  (generate-vega-lite-examples)
+  (generate-d3-examples)
 
-  ;; Work with file paths
+  ;; === Generate All Examples at Once ===
+  (generate-all-examples)
+
+  ;; === Working with File Paths ===
   (binding [darkstar/*base-directory* "/path/to/data/"]
     (darkstar/vega-spec->svg spec-with-relative-paths))
 
-  ;; Convert your own spec
+  ;; === Convert Your Own Specifications ===
+  ;; Vega-lite
   (-> (slurp "my-spec.vl.json")
       darkstar/vega-lite-spec->svg
-      (spit "my-output.svg")))
+      (spit "my-output.svg"))
+
+  ;; Vega
+  (-> (slurp "my-spec.vg.json")
+      darkstar/vega-spec->svg
+      (spit "my-output.svg"))
+
+  ;; D3 with custom data
+  (-> [{:x 1 :y 2} {:x 3 :y 4}]
+      examples/d3-scatter-plot
+      (spit "my-d3-chart.svg")))
