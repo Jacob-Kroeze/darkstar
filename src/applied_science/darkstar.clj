@@ -84,60 +84,97 @@ var fs = {'readFile':readFile};
 ;; ==================== D3 Integration ====================
 
 (def d3-engine
-  "Separate engine for D3.js with DOM polyfills"
+  "Separate engine for D3.js with enhanced DOM polyfills"
   (let [context (-> (org.graalvm.polyglot.Context/newBuilder (into-array String ["js"]))
                     (.allowAllAccess true)
                     (.build))]
-    ;; Add DOM polyfills for D3
+    ;; Add enhanced DOM polyfills for real D3
     (.eval context "js" "
-// Minimal DOM polyfills for D3
+// Enhanced DOM polyfills for real D3.js
 global = globalThis;
-
-// Create a simple Document-like object
-function createDocument() {
-  var doc = {
-    createElement: function(tagName) {
-      return createSVGElement(tagName);
-    },
-    createElementNS: function(namespace, tagName) {
-      return createSVGElement(tagName);
-    },
-    querySelector: function(selector) {
-      return null; // Will be set by d3.select()
-    },
-    body: null
-  };
-  return doc;
-}
 
 function createSVGElement(tagName) {
   var element = {
     tagName: tagName.toUpperCase(),
+    nodeName: tagName.toUpperCase(),
+    nodeType: 1, // ELEMENT_NODE
     attributes: {},
     style: {},
     children: [],
+    childNodes: [],
     textContent: '',
+    innerHTML: '',
+    className: '',
+    id: '',
     
     setAttribute: function(name, value) {
-      this.attributes[name] = value;
+      this.attributes[name] = String(value);
+      if (name === 'class') this.className = String(value);
+      if (name === 'id') this.id = String(value);
     },
     
     getAttribute: function(name) {
-      return this.attributes[name];
+      return this.attributes[name] || null;
+    },
+    
+    hasAttribute: function(name) {
+      return this.attributes.hasOwnProperty(name);
+    },
+    
+    removeAttribute: function(name) {
+      delete this.attributes[name];
+      if (name === 'class') this.className = '';
+      if (name === 'id') this.id = '';
     },
     
     appendChild: function(child) {
-      child.parentNode = this;
-      this.children.push(child);
+      if (child && child !== this) {
+        child.parentNode = this;
+        this.children.push(child);
+        this.childNodes.push(child);
+      }
+      return child;
+    },
+    
+    insertBefore: function(newChild, referenceChild) {
+      if (newChild && newChild !== this) {
+        newChild.parentNode = this;
+        if (referenceChild) {
+          var index = this.children.indexOf(referenceChild);
+          if (index !== -1) {
+            this.children.splice(index, 0, newChild);
+            this.childNodes.splice(index, 0, newChild);
+          } else {
+            this.children.push(newChild);
+            this.childNodes.push(newChild);
+          }
+        } else {
+          this.children.push(newChild);
+          this.childNodes.push(newChild);
+        }
+      }
+      return newChild;
+    },
+    
+    removeChild: function(child) {
+      var index = this.children.indexOf(child);
+      if (index !== -1) {
+        this.children.splice(index, 1);
+        this.childNodes.splice(index, 1);
+        child.parentNode = null;
+      }
       return child;
     },
     
     querySelector: function(selector) {
       // Simple selector support
-      if (selector.startsWith('.')) {
+      if (selector.startsWith('#')) {
+        var id = selector.substring(1);
+        return this.getElementById(id);
+      } else if (selector.startsWith('.')) {
         var className = selector.substring(1);
         for (var i = 0; i < this.children.length; i++) {
-          if (this.children[i].attributes['class'] === className) {
+          if (this.children[i].className === className) {
             return this.children[i];
           }
         }
@@ -150,7 +187,7 @@ function createSVGElement(tagName) {
       if (selector.startsWith('.')) {
         var className = selector.substring(1);
         for (var i = 0; i < this.children.length; i++) {
-          if (this.children[i].attributes['class'] === className) {
+          if (this.children[i].className === className) {
             results.push(this.children[i]);
           }
         }
@@ -158,6 +195,31 @@ function createSVGElement(tagName) {
       return results;
     },
     
+    getElementById: function(id) {
+      if (this.id === id) return this;
+      for (var i = 0; i < this.children.length; i++) {
+        var result = this.children[i].getElementById(id);
+        if (result) return result;
+      }
+      return null;
+    },
+    
+    getElementsByTagName: function(tagName) {
+      var results = [];
+      if (this.tagName.toLowerCase() === tagName.toLowerCase()) {
+        results.push(this);
+      }
+      for (var i = 0; i < this.children.length; i++) {
+        results = results.concat(this.children[i].getElementsByTagName(tagName));
+      }
+      return results;
+    },
+    
+    addEventListener: function() {},
+    removeEventListener: function() {},
+    dispatchEvent: function() { return true; },
+    
+    // Custom toSVG method for output
     toSVG: function() {
       var svg = '<' + this.tagName.toLowerCase();
       
@@ -194,14 +256,54 @@ function createSVGElement(tagName) {
     }
   };
   
-  element.ownerDocument = global.document;
   return element;
 }
 
-global.document = createDocument();
+// Create document object
+global.document = {
+  documentElement: null,
+  body: null,
+  
+  createElement: function(tagName) {
+    var el = createSVGElement(tagName);
+    el.ownerDocument = this;
+    return el;
+  },
+  
+  createElementNS: function(namespace, tagName) {
+    var el = createSVGElement(tagName);
+    el.ownerDocument = this;
+    return el;
+  },
+  
+  querySelector: function(selector) {
+    return null;
+  },
+  
+  querySelectorAll: function(selector) {
+    return [];
+  },
+  
+  addEventListener: function() {},
+  removeEventListener: function() {},
+  dispatchEvent: function() { return true; }
+};
+
+// Create body and documentElement
+global.document.body = global.document.createElement('body');
+global.document.documentElement = global.document.createElement('html');
+global.document.documentElement.appendChild(global.document.body);
+
+// Window-like object for D3
+global.window = global;
+global.navigator = { userAgent: 'GraalJS' };
+
+// Basic event support
+global.Event = function(type) { this.type = type; };
+global.CustomEvent = global.Event;
 ")
-    ;; Load D3
-    (.eval context "js" (slurp (clojure.java.io/resource "d3-minimal.js")))
+    ;; Load real D3.js
+    (.eval context "js" (slurp (clojure.java.io/resource "d3.js")))
     context))
 
 (defn make-d3-fn [js-text]

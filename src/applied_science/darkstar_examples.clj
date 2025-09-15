@@ -375,12 +375,153 @@
         g.appendChild(legend);
       "))))
 
+(defn d3-real-features-demo
+  "Demonstrate real D3.js features like data joins, scales, and axes"
+  []
+  (let [data [{:category "Q1" :sales 1200 :costs 800}
+              {:category "Q2" :sales 1400 :costs 900}
+              {:category "Q3" :sales 1100 :costs 750}
+              {:category "Q4" :sales 1600 :costs 1000}]]
+    (darkstar/d3-script->svg
+     (str "
+        var data = " (charred/write-json-str data) ";
+        
+        var margin = {top: 30, right: 80, bottom: 50, left: 60};
+        var width = 600 - margin.left - margin.right;
+        var height = 400 - margin.top - margin.bottom;
+        
+        // Create SVG using real D3 selection API
+        var svg = d3.select(global.document.body)
+          .append('svg')
+          .attr('width', width + margin.left + margin.right)
+          .attr('height', height + margin.top + margin.bottom);
+        
+        var g = svg.append('g')
+          .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+        
+        // Use real D3 scales
+        var x0 = d3.scaleBand()
+          .domain(data.map(d => d.category))
+          .range([0, width])
+          .padding(0.1);
+        
+        var x1 = d3.scaleBand()
+          .domain(['sales', 'costs'])
+          .range([0, x0.bandwidth()])
+          .padding(0.05);
+        
+        var y = d3.scaleLinear()
+          .domain([0, d3.max(data, d => Math.max(d.sales, d.costs))])
+          .nice()
+          .range([height, 0]);
+        
+        // Use real D3 color scale
+        var color = d3.scaleOrdinal()
+          .domain(['sales', 'costs'])
+          .range(['#2E86AB', '#A23B72']);
+        
+        // Create real D3 axes
+        var xAxis = d3.axisBottom(x0);
+        var yAxis = d3.axisLeft(y);
+        
+        // Add X axis
+        g.append('g')
+          .attr('class', 'x-axis')
+          .attr('transform', 'translate(0,' + height + ')')
+          .call(xAxis);
+        
+        // Add Y axis
+        g.append('g')
+          .attr('class', 'y-axis')
+          .call(yAxis);
+        
+        // Use D3 data joins for bars
+        var categories = g.selectAll('.category')
+          .data(data)
+          .enter().append('g')
+          .attr('class', 'category')
+          .attr('transform', d => 'translate(' + x0(d.category) + ',0)');
+        
+        // Sales bars
+        categories.append('rect')
+          .attr('class', 'sales-bar')
+          .attr('x', x1('sales'))
+          .attr('width', x1.bandwidth())
+          .attr('y', d => y(d.sales))
+          .attr('height', d => height - y(d.sales))
+          .attr('fill', color('sales'));
+        
+        // Costs bars  
+        categories.append('rect')
+          .attr('class', 'costs-bar')
+          .attr('x', x1('costs'))
+          .attr('width', x1.bandwidth())
+          .attr('y', d => y(d.costs))
+          .attr('height', d => height - y(d.costs))
+          .attr('fill', color('costs'));
+        
+        // Add value labels using D3 text elements
+        categories.selectAll('.value-label')
+          .data(d => [
+            {key: 'sales', value: d.sales, x: x1('sales')},
+            {key: 'costs', value: d.costs, x: x1('costs')}
+          ])
+          .enter().append('text')
+          .attr('class', 'value-label')
+          .attr('x', d => d.x + x1.bandwidth()/2)
+          .attr('y', d => y(d.value) - 5)
+          .attr('text-anchor', 'middle')
+          .attr('font-family', 'Arial, sans-serif')
+          .attr('font-size', '10px')
+          .attr('fill', '#333')
+          .text(d => d.value);
+        
+        // Add title
+        svg.append('text')
+          .attr('x', (width + margin.left + margin.right) / 2)
+          .attr('y', 20)
+          .attr('text-anchor', 'middle')
+          .attr('font-family', 'Arial, sans-serif')
+          .attr('font-size', '16px')
+          .attr('font-weight', 'bold')
+          .attr('fill', '#333')
+          .text('Quarterly Performance - Real D3.js Demo');
+        
+        // Add legend using D3 selections
+        var legend = svg.append('g')
+          .attr('class', 'legend')
+          .attr('transform', 'translate(' + (width + margin.left + 10) + ',' + (margin.top + 20) + ')');
+        
+        var legendItems = legend.selectAll('.legend-item')
+          .data(['sales', 'costs'])
+          .enter().append('g')
+          .attr('class', 'legend-item')
+          .attr('transform', (d, i) => 'translate(0,' + (i * 20) + ')');
+        
+        legendItems.append('rect')
+          .attr('width', 15)
+          .attr('height', 15)
+          .attr('fill', d => color(d));
+        
+        legendItems.append('text')
+          .attr('x', 20)
+          .attr('y', 12)
+          .attr('font-family', 'Arial, sans-serif')
+          .attr('font-size', '12px')
+          .attr('fill', '#333')
+          .text(d => d.charAt(0).toUpperCase() + d.slice(1));
+        
+        // Store the SVG for extraction
+        global.svgElement = svg.node();
+      "))))
+
 (defn generate-all-d3-examples
   "Generate all D3 example charts and save them to files"
   []
   (let [examples [["d3-simple-bar.svg" (d3-bar-chart)]
                   ["d3-scatter.svg" (d3-scatter-chart)]
-                  ["d3-advanced-bar.svg" (d3-advanced-bar-chart)]]]
+                  ["d3-advanced-bar.svg" (d3-advanced-bar-chart)]
+                  ["d3-real-features.svg" (d3-real-features-demo)]]]
     (doseq [[filename svg] examples]
       (save-example svg filename)
       (println "Generated" filename))
@@ -406,6 +547,8 @@
 
   ;; Generate all examples
   (examples/generate-all-examples)
+
+  (examples/generate-all-d3-examples)
 
   ;; Work with file paths
   (binding [darkstar/*base-directory* "/path/to/data/"]
