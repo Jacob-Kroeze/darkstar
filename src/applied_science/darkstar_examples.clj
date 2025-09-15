@@ -1,5 +1,12 @@
 (ns applied-science.darkstar-examples
-  "Working examples for the Darkstar library demonstrating Vega and Vega-lite rendering to SVG"
+  "Working examples for the Darkstar library demonstrating Vega, Vega-lite, and D3.js rendering to SVG.
+   
+   This namespace provides comprehensive examples of server-side data visualization using:
+   - Vega: Grammar of graphics declarative visualizations
+   - Vega-lite: High-level grammar for statistical graphics  
+   - D3.js: Low-level imperative DOM manipulation for custom charts
+   
+   All examples generate SVG output that can be saved to files or embedded in web pages."
   (:require [applied-science.darkstar :as darkstar]
             [clojure.java.io :as io]))
 
@@ -336,6 +343,163 @@
   (save-example (histogram) "histogram.svg")
 
   (println "All examples generated!"))
+
+;; ==================== D3 Examples ====================
+
+(defn d3-bar-chart
+  "Create a bar chart using D3.js"
+  []
+  (let [data [{:name "Apples" :value 28}
+              {:name "Bananas" :value 55}
+              {:name "Cherries" :value 43}
+              {:name "Dates" :value 91}
+              {:name "Elderberry" :value 67}]]
+    (darkstar/d3-simple-bar-chart data)))
+
+(defn d3-scatter-chart
+  "Create a scatter plot using D3.js"
+  []
+  (let [data [{:x 10 :y 20}
+              {:x 25 :y 35}
+              {:x 40 :y 55}
+              {:x 55 :y 30}
+              {:x 70 :y 80}
+              {:x 85 :y 45}
+              {:x 95 :y 72}]]
+    (darkstar/d3-scatter-plot data)))
+
+(defn d3-advanced-bar-chart
+  "Create an advanced bar chart with custom D3 script"
+  []
+  (darkstar/d3-script->svg "
+    var data = [
+      {category: 'Q1', sales: 1200, costs: 800},
+      {category: 'Q2', sales: 1400, costs: 900},
+      {category: 'Q3', sales: 1100, costs: 750},
+      {category: 'Q4', sales: 1600, costs: 1000}
+    ];
+    
+    var margin = {top: 30, right: 30, bottom: 40, left: 50};
+    var width = 600 - margin.left - margin.right;
+    var height = 400 - margin.top - margin.bottom;
+    
+    // Create SVG
+    var svg = global.document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', width + margin.left + margin.right);
+    svg.setAttribute('height', height + margin.top + margin.bottom);
+    global.svgElement = svg;
+    
+    var g = global.document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+    svg.appendChild(g);
+    
+    // Title
+    var title = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    title.setAttribute('x', width / 2);
+    title.setAttribute('y', -10);
+    title.setAttribute('text-anchor', 'middle');
+    title.setAttribute('font-family', 'Arial, sans-serif');
+    title.setAttribute('font-size', '16px');
+    title.setAttribute('font-weight', 'bold');
+    title.textContent = 'Quarterly Sales vs Costs';
+    g.appendChild(title);
+    
+    // Scales
+    var x0 = d3.scaleBand().range([0, width]).domain(data.map(d => d.category)).padding(0.1);
+    var x1 = d3.scaleBand().domain(['sales', 'costs']).range([0, x0.bandwidth()]).padding(0.05);
+    var y = d3.scaleLinear().range([height, 0]).domain([0, d3.max(data, d => Math.max(d.sales, d.costs))]);
+    
+    // Colors
+    var colors = {sales: '#4CAF50', costs: '#FF5722'};
+    
+    // Create grouped bars
+    data.forEach(function(d) {
+      // Sales bar
+      var salesRect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      salesRect.setAttribute('x', x0(d.category) + x1('sales'));
+      salesRect.setAttribute('y', y(d.sales));
+      salesRect.setAttribute('width', x1.bandwidth());
+      salesRect.setAttribute('height', height - y(d.sales));
+      salesRect.setAttribute('fill', colors.sales);
+      g.appendChild(salesRect);
+      
+      // Costs bar
+      var costsRect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      costsRect.setAttribute('x', x0(d.category) + x1('costs'));
+      costsRect.setAttribute('y', y(d.costs));
+      costsRect.setAttribute('width', x1.bandwidth());
+      costsRect.setAttribute('height', height - y(d.costs));
+      costsRect.setAttribute('fill', colors.costs);
+      g.appendChild(costsRect);
+      
+      // Category label
+      var label = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('x', x0(d.category) + x0.bandwidth() / 2);
+      label.setAttribute('y', height + 20);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-family', 'Arial, sans-serif');
+      label.setAttribute('font-size', '12px');
+      label.textContent = d.category;
+      g.appendChild(label);
+    });
+    
+    // Legend
+    var legend = global.document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    legend.setAttribute('transform', 'translate(' + (width - 100) + ',20)');
+    
+    // Sales legend
+    var salesLegendRect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    salesLegendRect.setAttribute('x', 0);
+    salesLegendRect.setAttribute('y', 0);
+    salesLegendRect.setAttribute('width', 15);
+    salesLegendRect.setAttribute('height', 15);
+    salesLegendRect.setAttribute('fill', colors.sales);
+    legend.appendChild(salesLegendRect);
+    
+    var salesLegendText = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    salesLegendText.setAttribute('x', 20);
+    salesLegendText.setAttribute('y', 12);
+    salesLegendText.setAttribute('font-family', 'Arial, sans-serif');
+    salesLegendText.setAttribute('font-size', '12px');
+    salesLegendText.textContent = 'Sales';
+    legend.appendChild(salesLegendText);
+    
+    // Costs legend
+    var costsLegendRect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    costsLegendRect.setAttribute('x', 0);
+    costsLegendRect.setAttribute('y', 20);
+    costsLegendRect.setAttribute('width', 15);
+    costsLegendRect.setAttribute('height', 15);
+    costsLegendRect.setAttribute('fill', colors.costs);
+    legend.appendChild(costsLegendRect);
+    
+    var costsLegendText = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    costsLegendText.setAttribute('x', 20);
+    costsLegendText.setAttribute('y', 32);
+    costsLegendText.setAttribute('font-family', 'Arial, sans-serif');
+    costsLegendText.setAttribute('font-size', '12px');
+    costsLegendText.textContent = 'Costs';
+    legend.appendChild(costsLegendText);
+    
+    g.appendChild(legend);
+  "))
+
+(defn generate-all-d3-examples
+  "Generate all D3 example charts and save them to files"
+  []
+  (let [examples [["d3-simple-bar.svg" (d3-bar-chart)]
+                  ["d3-scatter.svg" (d3-scatter-chart)]
+                  ["d3-advanced-bar.svg" (d3-advanced-bar-chart)]]]
+    (doseq [[filename svg] examples]
+      (save-example svg filename)
+      (println "Generated" filename))
+    (println "All D3 examples generated!")))
+
+(defn generate-all-examples-with-d3
+  "Generate all examples including both Vega/Vega-lite and D3 examples"
+  []
+  (generate-all-examples)
+  (generate-all-d3-examples))
 
 ;; ============================================================================
 ;; Usage Examples in Comments

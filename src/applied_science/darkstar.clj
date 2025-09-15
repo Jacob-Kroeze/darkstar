@@ -80,6 +80,297 @@ var fs = {'readFile':readFile};
   [vega-lite-spec-json-string]
   (vega-spec->svg (vega-lite->vega vega-lite-spec-json-string)))
 
+;; ==================== D3 Integration ====================
+
+(def d3-engine
+  "Separate engine for D3.js with DOM polyfills"
+  (let [context (-> (org.graalvm.polyglot.Context/newBuilder (into-array String ["js"]))
+                    (.allowAllAccess true)
+                    (.build))]
+    ;; Add DOM polyfills for D3
+    (.eval context "js" "
+// Minimal DOM polyfills for D3
+global = globalThis;
+
+// Create a simple Document-like object
+function createDocument() {
+  var doc = {
+    createElement: function(tagName) {
+      return createSVGElement(tagName);
+    },
+    createElementNS: function(namespace, tagName) {
+      return createSVGElement(tagName);
+    },
+    querySelector: function(selector) {
+      return null; // Will be set by d3.select()
+    },
+    body: null
+  };
+  return doc;
+}
+
+function createSVGElement(tagName) {
+  var element = {
+    tagName: tagName.toUpperCase(),
+    attributes: {},
+    style: {},
+    children: [],
+    textContent: '',
+    
+    setAttribute: function(name, value) {
+      this.attributes[name] = value;
+    },
+    
+    getAttribute: function(name) {
+      return this.attributes[name];
+    },
+    
+    appendChild: function(child) {
+      child.parentNode = this;
+      this.children.push(child);
+      return child;
+    },
+    
+    querySelector: function(selector) {
+      // Simple selector support
+      if (selector.startsWith('.')) {
+        var className = selector.substring(1);
+        for (var i = 0; i < this.children.length; i++) {
+          if (this.children[i].attributes['class'] === className) {
+            return this.children[i];
+          }
+        }
+      }
+      return null;
+    },
+    
+    querySelectorAll: function(selector) {
+      var results = [];
+      if (selector.startsWith('.')) {
+        var className = selector.substring(1);
+        for (var i = 0; i < this.children.length; i++) {
+          if (this.children[i].attributes['class'] === className) {
+            results.push(this.children[i]);
+          }
+        }
+      }
+      return results;
+    },
+    
+    toSVG: function() {
+      var svg = '<' + this.tagName.toLowerCase();
+      
+      // Add attributes
+      for (var attr in this.attributes) {
+        svg += ' ' + attr + '=\"' + this.attributes[attr] + '\"';
+      }
+      
+      // Add style
+      var styleStr = '';
+      for (var prop in this.style) {
+        if (this.style[prop]) {
+          styleStr += prop + ':' + this.style[prop] + ';';
+        }
+      }
+      if (styleStr) {
+        svg += ' style=\"' + styleStr + '\"';
+      }
+      
+      svg += '>';
+      
+      // Add text content
+      if (this.textContent) {
+        svg += this.textContent;
+      }
+      
+      // Add children
+      for (var i = 0; i < this.children.length; i++) {
+        svg += this.children[i].toSVG();
+      }
+      
+      svg += '</' + this.tagName.toLowerCase() + '>';
+      return svg;
+    }
+  };
+  
+  element.ownerDocument = global.document;
+  return element;
+}
+
+global.document = createDocument();
+")
+    ;; Load D3
+    (.eval context "js" (slurp (clojure.java.io/resource "d3-minimal.js")))
+    context))
+
+(defn make-d3-fn [js-text]
+  "Create a D3 function that returns SVG string"
+  (let [wrapped-text (str "(" js-text ")")
+        ^org.graalvm.polyglot.Value f (.eval d3-engine "js" wrapped-text)]
+    (fn [& args]
+      (let [result (.execute f (to-array args))]
+        (if (.hasArrayElements result)
+          (.as result (Class/forName "[Ljava.lang.Object;"))
+          (if (.canExecute result)
+            result
+            (.as result Object)))))))
+
+(defn- clj->js-json
+  "Convert Clojure data to JavaScript JSON string"
+  [data]
+  (letfn [(convert-value [v]
+            (cond
+              (nil? v) "null"
+              (boolean? v) (str v)
+              (number? v) (str v)
+              (string? v) (str "\"" v "\"")
+              (keyword? v) (str "\"" (name v) "\"")
+              (map? v) (str "{"
+                            (->> v
+                                 (map (fn [[k v]]
+                                        (str (convert-value (if (keyword? k) (name k) k))
+                                             ":" (convert-value v))))
+                                 (clojure.string/join ","))
+                            "}")
+              (sequential? v) (str "["
+                                   (->> v
+                                        (map convert-value)
+                                        (clojure.string/join ","))
+                                   "]")
+              :else (str "\"" v "\"")))]
+    (convert-value data)))
+
+(defn d3-script->svg
+  "Execute D3 JavaScript code and return SVG string.
+   The script should create an SVG element and return its HTML."
+  [d3-script]
+  (let [wrapped-script (str "
+    (function() {
+      " d3-script "
+      
+      // Find the SVG element and return its HTML
+      var svg = global.document.querySelector ? global.document.querySelector('svg') : null;
+      if (!svg && global.svgElement) {
+        svg = global.svgElement;
+      }
+      return svg ? svg.toSVG() : '<svg></svg>';
+    })()
+  ")]
+    (.as (.eval d3-engine "js" wrapped-script) String)))
+
+;; D3 Example Functions
+
+(defn d3-simple-bar-chart
+  "Create a simple bar chart using D3"
+  [data]
+  (d3-script->svg
+   (str "
+      var data = " (clj->js-json data) ";
+      
+      var margin = {top: 20, right: 20, bottom: 30, left: 40};
+      var width = 500 - margin.left - margin.right;
+      var height = 300 - margin.top - margin.bottom;
+      
+      // Create SVG
+      var svg = global.document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', width + margin.left + margin.right);
+      svg.setAttribute('height', height + margin.top + margin.bottom);
+      global.svgElement = svg;
+      
+      // Create group for margins
+      var g = global.document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+      svg.appendChild(g);
+      
+      // Set up scales
+      var x = d3.scaleBand()
+          .range([0, width])
+          .domain(data.map(function(d) { return d.name; }))
+          .padding(0.1);
+      
+      var y = d3.scaleLinear()
+          .range([height, 0])
+          .domain([0, d3.max(data, function(d) { return d.value; })]);
+      
+      // Create bars
+      data.forEach(function(d, i) {
+        var rect = global.document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', x(d.name));
+        rect.setAttribute('width', x.bandwidth());
+        rect.setAttribute('y', y(d.value));
+        rect.setAttribute('height', height - y(d.value));
+        rect.setAttribute('fill', 'steelblue');
+        g.appendChild(rect);
+        
+        // Add text label
+        var text = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x(d.name) + x.bandwidth() / 2);
+        text.setAttribute('y', y(d.value) - 5);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-family', 'Arial, sans-serif');
+        text.setAttribute('font-size', '12px');
+        text.textContent = d.value;
+        g.appendChild(text);
+      });
+      
+      // Add X axis
+      var xAxis = global.document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      xAxis.setAttribute('transform', 'translate(0,' + height + ')');
+      data.forEach(function(d) {
+        var text = global.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', x(d.name) + x.bandwidth() / 2);
+        text.setAttribute('y', 15);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('font-family', 'Arial, sans-serif');
+        text.setAttribute('font-size', '12px');
+        text.textContent = d.name;
+        xAxis.appendChild(text);
+      });
+      g.appendChild(xAxis);
+    ")))
+
+(defn d3-scatter-plot
+  "Create a scatter plot using D3"
+  [data]
+  (d3-script->svg
+   (str "
+      var data = " (clj->js-json data) ";
+      
+      var margin = {top: 20, right: 20, bottom: 30, left: 40};
+      var width = 500 - margin.left - margin.right;
+      var height = 300 - margin.top - margin.bottom;
+      
+      // Create SVG
+      var svg = global.document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', width + margin.left + margin.right);
+      svg.setAttribute('height', height + margin.top + margin.bottom);
+      global.svgElement = svg;
+      
+      var g = global.document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.setAttribute('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+      svg.appendChild(g);
+      
+      // Set up scales
+      var x = d3.scaleLinear()
+          .range([0, width])
+          .domain([0, d3.max(data, function(d) { return d.x; })]);
+      
+      var y = d3.scaleLinear()
+          .range([height, 0])
+          .domain([0, d3.max(data, function(d) { return d.y; })]);
+      
+      // Create dots
+      data.forEach(function(d) {
+        var circle = global.document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x(d.x));
+        circle.setAttribute('cy', y(d.y));
+        circle.setAttribute('r', 4);
+        circle.setAttribute('fill', 'steelblue');
+        circle.setAttribute('opacity', 0.7);
+        g.appendChild(circle);
+      });
+    ")))
+
 (comment
 
   (->> (slurp "vega-lite-movies.json")
