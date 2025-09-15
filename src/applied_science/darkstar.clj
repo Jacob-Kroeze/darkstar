@@ -9,12 +9,13 @@
   (slurp (.getAbsolutePath (java.io.File. (str *base-directory* filename)))))
 
 (def engine
-  (let [engine (.getEngineByName (javax.script.ScriptEngineManager.) "graal.js")
-        bindings (.getBindings engine javax.script.ScriptContext/ENGINE_SCOPE)]
-    (.put bindings "polyglot.js.allowAllAccess" true)
-    (doto engine
-      ;; XXX minimal polyfill for part of the fetch and fs APIs, brittle af
-      (.eval "
+  (let [context (-> (org.graalvm.polyglot.Context/newBuilder (into-array String ["js"]))
+                    (.allowAllAccess true)
+                    (.build))]
+    ;; Get the JavaScript bindings
+    (let [js (.getBindings context "js")]
+      ;; Add polyfills and libraries
+      (.eval context "js" "
 async function fetch(path, options) {
   var body = Java.type('clojure.core$slurp').invokeStatic(path,null);
   return {'ok' : true,
@@ -32,12 +33,22 @@ function readFile(path, callback) {
 }
 var fs = {'readFile':readFile};
 ")
-      (.eval (slurp (clojure.java.io/resource "vega.js")))
-      (.eval (slurp (clojure.java.io/resource "vega-lite.js"))))))
+      (.eval context "js" (slurp (clojure.java.io/resource "vega.js")))
+      (.eval context "js" (slurp (clojure.java.io/resource "vega-lite.js"))))
+    context))
 
 (defn make-js-fn [js-text]
-  (let [^java.util.function.Function f (.eval engine js-text)]
-    (fn [& args] (.apply f (to-array args)))))
+  ;; Wrap the function text in parentheses for proper evaluation
+  (let [wrapped-text (str "(" js-text ")")
+        ^org.graalvm.polyglot.Value f (.eval engine "js" wrapped-text)]
+    (fn [& args]
+      (let [result (.execute f (to-array args))]
+        ;; If the result is a GraalJS Value, try to convert it to Java object
+        (if (.hasArrayElements result)
+          (.as result (Class/forName "[Ljava.lang.Object;"))
+          (if (.canExecute result)
+            result
+            (.as result Object)))))))
 
 (def vega-lite->vega
   "Converts a VegaLite spec into a Vega spec."
@@ -52,9 +63,9 @@ var fs = {'readFile':readFile};
   (make-js-fn "function (view) {
     var promise = Java.type('clojure.core$promise').invokeStatic();
     view.toSVG(1.0).then(function(svg) {
-        Java.type('clojure.core$deliver').invokeStatic(promise,svg);
+        Java.type('clojure.core$deliver').invokeStatic(promise, svg);
     }).catch(function(err) {
-        Java.type('clojure.core$deliver').invokeStatic(promise,'<svg><text>error</text></svg>');
+        Java.type('clojure.core$deliver').invokeStatic(promise, '<svg><text>Error: ' + err + '</text></svg>');
     });
     return promise;
 }"))
@@ -73,6 +84,4 @@ var fs = {'readFile':readFile};
 
   (->> (slurp "vega-lite-movies.json")
        vega-lite-spec->svg
-       (spit "vl-movies.svg"))
-  
-  )
+       (spit "vl-movies.svg")))
