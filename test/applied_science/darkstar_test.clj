@@ -6,8 +6,14 @@
 (def md5
   (let [hasher (java.security.MessageDigest/getInstance "MD5")]
     (fn [string]
-      (javax.xml.bind.DatatypeConverter/printHexBinary
-       (.digest hasher (.getBytes string "UTF-8"))))))
+      (let [bytes (.digest hasher (.getBytes string "UTF-8"))
+            hex-chars "0123456789ABCDEF"]
+        (apply str
+               (mapcat (fn [b]
+                         (let [v (bit-and b 0xFF)]
+                           [(nth hex-chars (bit-shift-right v 4))
+                            (nth hex-chars (bit-and v 0x0F))]))
+                       bytes))))))
 
 (defn spec-file->md5 [filename]
   (->> (read-file filename)
@@ -60,7 +66,7 @@
       (is (= (spec-file->md5 "layout-splom.vg.json") "87AB7B61D8F820F095A13CC9959DFF56"))
       (is (= (spec-file->md5 "layout-vconcat.vg.json") "7BAFC4CD4D055AB5FBCC6ED68C74F826"))
       (is (= (spec-file->md5 "layout-wrap.vg.json") "9894433F62093DC5EC6807F2B1762640"))
-      (is (= (spec-file->md5 "legends-discrete.vg.json") "1D5C1A53FF29B3A284A6DB26569CA046"))    
+      (is (= (spec-file->md5 "legends-discrete.vg.json") "1D5C1A53FF29B3A284A6DB26569CA046"))
       (is (= (spec-file->md5 "legends-ordinal.vg.json") "04161E1D46F07ECEED5AA7607FDEBB4F"))
       (is (= (spec-file->md5 "lifelines.vg.json") "AF7D691E005DEEF3A84EAF2741C5A5CB"))
       (is (= (spec-file->md5 "map-area-compare.vg.json") "DDA3CEF9FE0F087ECC19B94C6467AD35"))
@@ -100,6 +106,69 @@
       (is (= (spec-file->md5 "violin-plot.vg.json") "5B9B6728A498BBAAC67CC49248554D82"))
       (is (= (spec-file->md5 "weather.vg.json") "66963C83571E782A6354FD3DD3FD5849"))
       (is (= (spec-file->md5 "window.vg.json") "69462999260F9BAAC1C90A7D30E7926C")))))
+
+(deftest observable-plot-test
+  (testing "Observable Plot functionality"
+    (let [bar-data [{:name "A" :value 28}
+                    {:name "B" :value 55}
+                    {:name "C" :value 43}]
+          scatter-data [{:x 1 :y 2}
+                        {:x 2 :y 4}
+                        {:x 3 :y 3}]]
+
+      (testing "plot-bar-chart generates valid SVG"
+        (let [svg (plot-bar-chart bar-data)]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>"))))
+
+      (testing "plot-scatter-plot generates valid SVG"
+        (let [svg (plot-scatter-plot scatter-data)]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>"))))
+
+      (testing "plot-line-chart generates valid SVG"
+        (let [svg (plot-line-chart scatter-data)]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>"))))
+
+      (testing "plot-area-chart generates valid SVG"
+        (let [svg (plot-area-chart scatter-data)]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>"))))
+
+      (testing "plot-histogram generates valid SVG"
+        (let [hist-data [{:value 1.2} {:value 2.4} {:value 1.8}]
+              svg (plot-histogram hist-data)]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>"))))
+
+      (testing "plot->svg with custom spec"
+        (let [svg (plot->svg {:marks [{:type "dot" :data scatter-data :x "x" :y "y"}]
+                              :width 300
+                              :height 200})]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>"))))
+
+      (testing "plot-script->svg with custom JavaScript"
+        (let [script "
+          var data = [{x: 1, y: 2}, {x: 2, y: 4}];
+          var plot = Plot.plot({
+            marks: [Plot.dot(data, {x: 'x', y: 'y'})],
+            width: 300,
+            height: 200
+          });
+          global.plotElement = plot;
+        "
+              svg (plot-script->svg script)]
+          (is (string? svg))
+          (is (.startsWith svg "<svg"))
+          (is (.endsWith svg "</svg>")))))))
 
 ;; TODO these tests all look right to me, but have very slight
 ;; textual differences between runs that break comparison.

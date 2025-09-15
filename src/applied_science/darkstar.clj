@@ -454,6 +454,350 @@ global.CustomEvent = global.Event;
       });
     ")))
 
+;; ==================== Observable Plot Integration ====================
+
+(def plot-engine
+  "Separate engine for Observable Plot with D3 and Plot libraries"
+  (let [context (-> (org.graalvm.polyglot.Context/newBuilder (into-array String ["js"]))
+                    (.allowAllAccess true)
+                    (.build))]
+    ;; Add DOM polyfills (same as D3 but optimized for Plot)
+    (.eval context "js" "
+// DOM polyfills for Observable Plot
+global = globalThis;
+
+function createSVGElement(tagName) {
+  var element = {
+    tagName: tagName.toUpperCase(),
+    nodeName: tagName.toUpperCase(),
+    nodeType: 1,
+    attributes: {},
+    style: {},
+    children: [],
+    childNodes: [],
+    textContent: '',
+    innerHTML: '',
+    className: '',
+    id: '',
+    
+    setAttribute: function(name, value) {
+      this.attributes[name] = String(value);
+      if (name === 'class') this.className = String(value);
+      if (name === 'id') this.id = String(value);
+    },
+    
+    getAttribute: function(name) {
+      return this.attributes[name] || null;
+    },
+    
+    hasAttribute: function(name) {
+      return this.attributes.hasOwnProperty(name);
+    },
+    
+    removeAttribute: function(name) {
+      delete this.attributes[name];
+      if (name === 'class') this.className = '';
+      if (name === 'id') this.id = '';
+    },
+    
+    appendChild: function(child) {
+      if (child && child !== this) {
+        child.parentNode = this;
+        this.children.push(child);
+        this.childNodes.push(child);
+      }
+      return child;
+    },
+    
+    insertBefore: function(newChild, referenceChild) {
+      if (newChild && newChild !== this) {
+        newChild.parentNode = this;
+        if (referenceChild) {
+          var index = this.children.indexOf(referenceChild);
+          if (index !== -1) {
+            this.children.splice(index, 0, newChild);
+            this.childNodes.splice(index, 0, newChild);
+          } else {
+            this.children.push(newChild);
+            this.childNodes.push(newChild);
+          }
+        } else {
+          this.children.push(newChild);
+          this.childNodes.push(newChild);
+        }
+      }
+      return newChild;
+    },
+    
+    removeChild: function(child) {
+      var index = this.children.indexOf(child);
+      if (index !== -1) {
+        this.children.splice(index, 1);
+        this.childNodes.splice(index, 1);
+        child.parentNode = null;
+      }
+      return child;
+    },
+    
+    querySelector: function(selector) {
+      if (selector.startsWith('#')) {
+        var id = selector.substring(1);
+        return this.getElementById(id);
+      } else if (selector.startsWith('.')) {
+        var className = selector.substring(1);
+        for (var i = 0; i < this.children.length; i++) {
+          if (this.children[i].className === className) {
+            return this.children[i];
+          }
+        }
+      }
+      return null;
+    },
+    
+    querySelectorAll: function(selector) {
+      var results = [];
+      if (selector.startsWith('.')) {
+        var className = selector.substring(1);
+        for (var i = 0; i < this.children.length; i++) {
+          if (this.children[i].className === className) {
+            results.push(this.children[i]);
+          }
+        }
+      }
+      return results;
+    },
+    
+    getElementById: function(id) {
+      if (this.id === id) return this;
+      for (var i = 0; i < this.children.length; i++) {
+        var result = this.children[i].getElementById(id);
+        if (result) return result;
+      }
+      return null;
+    },
+    
+    getElementsByTagName: function(tagName) {
+      var results = [];
+      if (this.tagName.toLowerCase() === tagName.toLowerCase()) {
+        results.push(this);
+      }
+      for (var i = 0; i < this.children.length; i++) {
+        results = results.concat(this.children[i].getElementsByTagName(tagName));
+      }
+      return results;
+    },
+    
+    addEventListener: function() {},
+    removeEventListener: function() {},
+    dispatchEvent: function() { return true; },
+    
+    toSVG: function() {
+      var svg = '<' + this.tagName.toLowerCase();
+      
+      for (var attr in this.attributes) {
+        svg += ' ' + attr + '=\"' + this.attributes[attr] + '\"';
+      }
+      
+      var styleStr = '';
+      for (var prop in this.style) {
+        if (this.style[prop]) {
+          styleStr += prop + ':' + this.style[prop] + ';';
+        }
+      }
+      if (styleStr) {
+        svg += ' style=\"' + styleStr + '\"';
+      }
+      
+      svg += '>';
+      
+      if (this.textContent) {
+        svg += this.textContent;
+      }
+      
+      for (var i = 0; i < this.children.length; i++) {
+        svg += this.children[i].toSVG();
+      }
+      
+      svg += '</' + this.tagName.toLowerCase() + '>';
+      return svg;
+    }
+  };
+  
+  return element;
+}
+
+// Create document object
+global.document = {
+  documentElement: null,
+  body: null,
+  
+  createElement: function(tagName) {
+    var el = createSVGElement(tagName);
+    el.ownerDocument = this;
+    return el;
+  },
+  
+  createElementNS: function(namespace, tagName) {
+    var el = createSVGElement(tagName);
+    el.ownerDocument = this;
+    return el;
+  },
+  
+  querySelector: function(selector) {
+    return null;
+  },
+  
+  querySelectorAll: function(selector) {
+    return [];
+  },
+  
+  addEventListener: function() {},
+  removeEventListener: function() {},
+  dispatchEvent: function() { return true; }
+};
+
+global.document.body = global.document.createElement('body');
+global.document.documentElement = global.document.createElement('html');
+global.document.documentElement.appendChild(global.document.body);
+
+global.window = global;
+global.navigator = { userAgent: 'GraalJS' };
+
+global.Event = function(type) { this.type = type; };
+global.CustomEvent = global.Event;
+")
+    ;; Load D3.js and Observable Plot
+    (.eval context "js" (slurp (clojure.java.io/resource "d3.js")))
+    (.eval context "js" (slurp (clojure.java.io/resource "plot.js")))
+    context))
+
+(defn make-plot-fn [js-text]
+  "Create an Observable Plot function"
+  (let [wrapped-text (str "(" js-text ")")
+        ^org.graalvm.polyglot.Value f (.eval plot-engine "js" wrapped-text)]
+    (fn [& args]
+      (let [result (.execute f (to-array args))]
+        (if (.hasArrayElements result)
+          (.as result (Class/forName "[Ljava.lang.Object;"))
+          (if (.canExecute result)
+            result
+            (.as result Object)))))))
+
+(defn plot->svg
+  "Execute Observable Plot code and return SVG string.
+   Takes a Plot specification and returns the rendered SVG.
+   Note: This function expects Observable Plot API format with Plot.mark() functions"
+  [plot-spec]
+  (let [plot-code (str "
+    (function() {
+      var spec = " (clj->js-json plot-spec) ";
+      
+      // Create the plot using Observable Plot API
+      var plot = Plot.plot(spec);
+      
+      // The plot is already an SVG element, get its HTML
+      return plot.outerHTML || plot.toString();
+    })()
+  ")]
+    (.as (.eval plot-engine "js" plot-code) String)))
+
+(defn plot-script->svg
+  "Execute custom Observable Plot JavaScript code and return SVG string.
+   The script should use Plot.plot() and return the SVG element."
+  [plot-script]
+  (let [wrapped-script (str "
+    (function() {
+      " plot-script "
+      
+      // Look for the created plot or SVG element
+      var plot = global.plotElement || global.document.querySelector('svg');
+      if (plot && plot.outerHTML) {
+        return plot.outerHTML;
+      } else if (plot && plot.toSVG) {
+        return plot.toSVG();
+      }
+      return '<svg></svg>';
+    })()
+  ")]
+    (.as (.eval plot-engine "js" wrapped-script) String)))
+
+;; Observable Plot Example Functions
+
+(defn plot-bar-chart
+  "Create a bar chart using Observable Plot"
+  [data]
+  (plot-script->svg
+   (str "
+     var data = " (clj->js-json data) ";
+     var plot = Plot.plot({
+       marks: [Plot.barY(data, {x: 'name', y: 'value'})],
+       width: 500,
+       height: 300,
+       marginLeft: 50
+     });
+     global.plotElement = plot;
+   ")))
+
+(defn plot-scatter-plot
+  "Create a scatter plot using Observable Plot"
+  [data]
+  (plot-script->svg
+   (str "
+     var data = " (clj->js-json data) ";
+     var plot = Plot.plot({
+       marks: [Plot.dot(data, {x: 'x', y: 'y'})],
+       width: 500,
+       height: 300,
+       marginLeft: 50
+     });
+     global.plotElement = plot;
+   ")))
+
+(defn plot-line-chart
+  "Create a line chart using Observable Plot"
+  [data]
+  (plot-script->svg
+   (str "
+     var data = " (clj->js-json data) ";
+     var plot = Plot.plot({
+       marks: [Plot.line(data, {x: 'x', y: 'y'})],
+       width: 500,
+       height: 300,
+       marginLeft: 50
+     });
+     global.plotElement = plot;
+   ")))
+
+(defn plot-area-chart
+  "Create an area chart using Observable Plot"
+  [data]
+  (plot-script->svg
+   (str "
+     var data = " (clj->js-json data) ";
+     var plot = Plot.plot({
+       marks: [Plot.areaY(data, {x: 'x', y: 'y'})],
+       width: 500,
+       height: 300,
+       marginLeft: 50
+     });
+     global.plotElement = plot;
+   ")))
+
+(defn plot-histogram
+  "Create a histogram using Observable Plot"
+  [data]
+  (plot-script->svg
+   (str "
+     var data = " (clj->js-json data) ";
+     var plot = Plot.plot({
+       marks: [Plot.rectY(data, Plot.binX({y: 'count'}, {x: 'value'}))],
+       width: 500,
+       height: 300,
+       marginLeft: 50
+     });
+     global.plotElement = plot;
+   ")))
+
 (comment
 
   (->> (slurp "vega-lite-movies.json")

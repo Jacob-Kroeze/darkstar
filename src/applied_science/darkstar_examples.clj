@@ -1,10 +1,11 @@
 (ns applied-science.darkstar-examples
-  "Working examples for the Darkstar library demonstrating Vega, Vega-lite, and D3.js rendering to SVG.
+  "Working examples for the Darkstar library demonstrating Vega, Vega-lite, D3.js, and Observable Plot rendering to SVG.
    
    This namespace provides comprehensive examples of server-side data visualization using:
    - Vega: Grammar of graphics declarative visualizations
    - Vega-lite: High-level grammar for statistical graphics  
    - D3.js: Low-level imperative DOM manipulation for custom charts
+   - Observable Plot: Modern grammar of graphics for exploratory data analysis
    
    All examples generate SVG output that can be saved to files or embedded in web pages."
   (:require [applied-science.darkstar :as darkstar]
@@ -430,12 +431,172 @@
   (save-example (d3-advanced-features) "d3-advanced-features.svg")
   (println "D3 examples generated!"))
 
+;; ============================================================================
+;; Observable Plot Examples (Modern grammar of graphics)
+;; ============================================================================
+
+(defn plot-bar-chart
+  "Bar chart using Observable Plot"
+  []
+  (darkstar/plot-bar-chart
+   [{:name "A" :value 28}
+    {:name "B" :value 55}
+    {:name "C" :value 43}
+    {:name "D" :value 91}
+    {:name "E" :value 81}
+    {:name "F" :value 53}]))
+
+(defn plot-scatter-plot
+  "Scatter plot using Observable Plot"
+  []
+  (darkstar/plot-scatter-plot
+   [{:x 1 :y 2}
+    {:x 2 :y 4}
+    {:x 3 :y 3}
+    {:x 4 :y 5}
+    {:x 5 :y 4}
+    {:x 6 :y 7}
+    {:x 7 :y 6}
+    {:x 8 :y 9}]))
+
+(defn plot-line-chart
+  "Line chart using Observable Plot"
+  []
+  (darkstar/plot-line-chart
+   [{:x 1 :y 2}
+    {:x 2 :y 4}
+    {:x 3 :y 3}
+    {:x 4 :y 5}
+    {:x 5 :y 4}
+    {:x 6 :y 7}
+    {:x 7 :y 6}
+    {:x 8 :y 9}]))
+
+(defn plot-area-chart
+  "Area chart using Observable Plot"
+  []
+  (darkstar/plot-area-chart
+   [{:x 1 :y 2}
+    {:x 2 :y 4}
+    {:x 3 :y 3}
+    {:x 4 :y 5}
+    {:x 5 :y 4}
+    {:x 6 :y 7}
+    {:x 7 :y 6}
+    {:x 8 :y 9}]))
+
+(defn plot-histogram
+  "Histogram using Observable Plot"
+  []
+  (darkstar/plot-histogram
+   [{:value 1.2}
+    {:value 2.4}
+    {:value 1.8}
+    {:value 3.1}
+    {:value 2.7}
+    {:value 1.9}
+    {:value 2.2}
+    {:value 3.5}
+    {:value 1.1}
+    {:value 2.8}]))
+
+(defn plot-custom-chart
+  "Custom Observable Plot with multiple marks"
+  []
+  (darkstar/plot-script->svg
+   "
+   var data = [
+     {x: 1, y: 2, category: 'A'},
+     {x: 2, y: 4, category: 'B'},
+     {x: 3, y: 3, category: 'A'},
+     {x: 4, y: 5, category: 'B'}
+   ];
+   
+   var plot = Plot.plot({
+     marks: [
+       Plot.frame(),
+       Plot.dot(data, {x: 'x', y: 'y', fill: 'category', r: 5})
+     ],
+     width: 500,
+     height: 300,
+     marginLeft: 50
+   });
+   
+   global.plotElement = plot;
+   "))
+
+(defn plot-facet-chart
+  "Observable Plot faceted chart example"
+  []
+  (darkstar/plot-script->svg
+   "
+   var data = [
+     {x: 1, y: 2, category: 'A', type: 'small'},
+     {x: 2, y: 4, category: 'B', type: 'small'},
+     {x: 3, y: 3, category: 'A', type: 'large'},
+     {x: 4, y: 5, category: 'B', type: 'large'},
+     {x: 5, y: 1, category: 'A', type: 'small'},
+     {x: 6, y: 6, category: 'B', type: 'large'}
+   ];
+   
+   var plot = Plot.plot({
+     marks: [
+       Plot.dot(data, {x: 'x', y: 'y', fill: 'category', fx: 'type'})
+     ],
+     width: 600,
+     height: 300,
+     marginLeft: 50
+   });
+   
+   global.plotElement = plot;
+   "))
+
+(defn plot-smooth-line
+  "Observable Plot with smooth line"
+  []
+  (darkstar/plot-script->svg
+   "
+   var data = [
+     {x: 1, y: 2}, {x: 2, y: 5}, {x: 3, y: 3}, 
+     {x: 4, y: 8}, {x: 5, y: 4}, {x: 6, y: 7},
+     {x: 7, y: 6}, {x: 8, y: 9}
+   ];
+   
+   var plot = Plot.plot({
+     marks: [
+       Plot.dot(data, {x: 'x', y: 'y', fill: 'steelblue'}),
+       Plot.line(data, Plot.windowY(3, {x: 'x', y: 'y', stroke: 'red'}))
+     ],
+     width: 500,
+     height: 300,
+     marginLeft: 50
+   });
+   
+   global.plotElement = plot;
+   "))
+
+(defn generate-plot-examples
+  "Generate all Observable Plot example visualizations"
+  []
+  (io/make-parents "examples/dummy.txt")
+  (println "Generating Observable Plot examples...")
+  (save-example (plot-bar-chart) "plot-bar.svg")
+  (save-example (plot-scatter-plot) "plot-scatter.svg")
+  (save-example (plot-line-chart) "plot-line.svg")
+  (save-example (plot-area-chart) "plot-area.svg")
+  (save-example (plot-histogram) "plot-histogram.svg")
+  (save-example (plot-custom-chart) "plot-custom.svg")
+  (save-example (plot-facet-chart) "plot-facet.svg")
+  (save-example (plot-smooth-line) "plot-smooth.svg")
+  (println "Observable Plot examples generated!"))
+
 (defn generate-all-examples
-  "Generate all example visualizations (Vega, Vega-lite, and D3)"
+  "Generate all example visualizations (Vega, Vega-lite, D3, and Observable Plot)"
   []
   (generate-vega-examples)
   (generate-vega-lite-examples)
-  (generate-d3-examples))
+  (generate-d3-examples)
+  (generate-plot-examples))
 
 ;; ============================================================================
 ;; Backwards Compatibility Aliases
