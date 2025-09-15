@@ -1,7 +1,9 @@
 {:paths ["src" "resources"]
  :deps {org.clojure/clojure {:mvn/version "1.10.1"}
-        org.graalvm.js/js {:mvn/version "20.0.0"}
-        org.graalvm.js/js-scriptengine {:mvn/version "20.0.0"}}
+        org.graalvm.js/js {:mvn/version "24.2.2"
+                           :extension "pom"}
+        org.graalvm.js/js-scriptengine {:mvn/version "24.2.2"}
+        com.cnuernber/charred {:mvn/version "1.037"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps {org.clojure/test.check {:mvn/version "0.10.0"}}}
@@ -13,11 +15,9 @@
                "-d" "test"]}
   :release
   {:extra-deps {applied-science/deps-library {:mvn/version "0.4.0"}}
-   :main-opts ["-m" "applied-science.deps-library"]}}}
-
-  ;; :jar {:extra-deps {seancorfield/depstar {:mvn/version "0.5.2"}}
-  ;;       :main-opts ["-m" "hf.depstar.jar" "darkstar.jar"]}
-  ;; :install {:extra-deps {deps-deploy {:mvn/version "0.0.9"}}
-  ;;           :main-opts ["-m" "deps-deploy.deps-deploy" "install" "darkstar.jar"]}
-  ;; :deploy {:extra-deps {deps-deploy {:mvn/version "0.0.9"}}
-  ;;          :main-opts ["-m" "deps-deploy.deps-deploy" "deploy" "darkstar.jar"]}
+   :main-opts ["-m" "applied-science.deps-library"]}
+  :nrepl {:extra-paths ["test"]
+          :extra-deps {nrepl/nrepl {:mvn/version "1.3.1"}}
+	  ;; this allows nrepl to interrupt runaway repl evals
+          :jvm-opts ["-Djdk.attach.allowAttachSelf"]
+          :main-opts ["-m" "nrepl.cmdline" "--port" "7888"]}}}
