@@ -798,6 +798,23 @@ global.CustomEvent = global.Event;
      global.plotElement = plot;
    ")))
 
+
+(def plotly-engine
+  "Separate engine for plotly"
+  (let [context (-> (org.graalvm.polyglot.Context/newBuilder (into-array String ["js"]))
+                    (.allowAllAccess true)
+                    (.build))]
+    ;; Add enhanced DOM polyfills for real D3
+    (.eval context "js" "
+// plotly.js
+           todo
+           plot = addplot
+           plot.toSVG"
+;; Load D3.js and Observable Plot
+    (.eval context "js" (slurp (clojure.java.io/resource "plotly.js")))
+    context)
+           
+)
 (comment
 
   (->> (slurp "vega-lite-movies.json")
